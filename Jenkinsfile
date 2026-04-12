@@ -15,9 +15,6 @@ pipeline {
 
     stages {
 
-        // ══════════════════════════════════════════
-        // ETAPA 1: Checkout y leer historial
-        // ══════════════════════════════════════════
         stage('Checkout') {
             steps {
                 script {
@@ -31,9 +28,6 @@ pipeline {
             }
         }
 
-        // ══════════════════════════════════════════
-        // ETAPA 2: Build de ambas versiones
-        // ══════════════════════════════════════════
         stage('Build Versión A y B') {
             steps {
                 script {
@@ -58,9 +52,6 @@ pipeline {
             }
         }
 
-        // ══════════════════════════════════════════
-        // ETAPA 3: Deploy simultáneo A y B
-        // ══════════════════════════════════════════
         stage('Deploy A/B Simultáneo') {
             steps {
                 script {
@@ -97,11 +88,6 @@ pipeline {
             }
         }
 
-        // ══════════════════════════════════════════
-        // ETAPA 4: Simulación de carga y P95
-        //          Usa python para calcular P95
-        //          (compatible con sh/dash)
-        // ══════════════════════════════════════════
         stage('Simulación de Carga y P95') {
             steps {
                 script {
@@ -153,10 +139,10 @@ PYEOF
                             returnStdout: true
                         ).trim()
 
-                        def p95    = (resultado =~ /P95:(\d+)/)[0][1].toInteger()
-                        def prom   = (resultado =~ /PROM:(\d+)/)[0][1].toInteger()
+                        def p95     = (resultado =~ /P95:(\d+)/)[0][1].toInteger()
+                        def prom    = (resultado =~ /PROM:(\d+)/)[0][1].toInteger()
                         def errores = (resultado =~ /ERRORES:(\d+)/)[0][1].toInteger()
-                        def tasa   = (resultado =~ /TASA:([\d.]+)/)[0][1].toDouble()
+                        def tasa    = (resultado =~ /TASA:([\d.]+)/)[0][1].toDouble()
 
                         echo "  ${label}: P95=${p95}ms | Promedio=${prom}ms | Errores=${errores}/30 (${tasa}%)"
                         return [p95: p95, promedio: prom, errores: errores, tasaError: tasa]
@@ -188,10 +174,6 @@ PYEOF
             }
         }
 
-        // ══════════════════════════════════════════
-        // ETAPA 5: Scoring ponderado y decisión
-        //          60% P95 + 40% tasa de errores
-        // ══════════════════════════════════════════
         stage('Scoring Ponderado y Decisión') {
             steps {
                 script {
@@ -205,7 +187,6 @@ PYEOF
                     def scoreA = (p95A * pesoV) + (errA * pesoE * 10)
                     def scoreB = (p95B * pesoV) + (errB * pesoE * 10)
 
-                    // ✅ String.format evita notación científica (3E+1) del BigDecimal de Groovy
                     env.SCORE_A = String.format("%.2f", scoreA as double)
                     env.SCORE_B = String.format("%.2f", scoreB as double)
 
@@ -240,9 +221,6 @@ PYEOF
             }
         }
 
-        // ══════════════════════════════════════════
-        // ETAPA 6: Promover ganadora a Producción
-        // ══════════════════════════════════════════
         stage('Promover a Producción') {
             steps {
                 script {
@@ -267,9 +245,6 @@ PYEOF
             }
         }
 
-        // ══════════════════════════════════════════
-        // ETAPA 7: Health Check con Rollback
-        // ══════════════════════════════════════════
         stage('Health Check + Rollback Automático') {
             steps {
                 script {
@@ -309,9 +284,6 @@ PYEOF
             }
         }
 
-        // ══════════════════════════════════════════
-        // ETAPA 8: Actualizar deployment-history.json
-        // ══════════════════════════════════════════
         stage('Actualizar Historial') {
             steps {
                 script {
@@ -359,21 +331,37 @@ PYEOF
 
         // ══════════════════════════════════════════
         // ETAPA 9: Generar Reporte HTML
+        //   Lee reporte-template.html del repo y
+        //   reemplaza los {{PLACEHOLDERS}} con los
+        //   valores reales del pipeline.
         // ══════════════════════════════════════════
         stage('Generar Reporte HTML') {
             steps {
                 script {
-                    echo '📋 Generando reporte HTML con Chart.js...'
+                    echo '📋 Generando reporte HTML desde plantilla...'
+
                     def fecha        = sh(script: "date '+%d/%m/%Y %H:%M'", returnStdout: true).trim()
                     def historialRaw = readFile('deployment-history.json')
                     def historial    = readJSON text: historialRaw
 
-                    def filasHistorial = ''
+                    def colorA  = env.GANADOR == 'A' ? '#27ae60' : '#e74c3c'
+                    def colorB  = env.GANADOR == 'B' ? '#27ae60' : '#e74c3c'
+                    def iconoA  = env.GANADOR == 'A' ? '🏆' : '❌'
+                    def iconoB  = env.GANADOR == 'B' ? '🏆' : '❌'
+                    def resultA = env.GANADOR == 'A' ? 'Ganadora' : 'Descartada'
+                    def resultB = env.GANADOR == 'B' ? 'Ganadora' : 'Descartada'
+
+                    def p95A_high = (env.A_P95.toInteger() * 1.1).toInteger()
+                    def p95A_low  = (env.A_P95.toInteger() * 0.9).toInteger()
+                    def p95B_high = (env.B_P95.toInteger() * 1.1).toInteger()
+                    def p95B_low  = (env.B_P95.toInteger() * 0.9).toInteger()
+
+                    def filas = ''
                     historial.historial.take(5).each { entry ->
                         def badge = entry.ganador == 'B'
                             ? '<span style="background:#27ae60;color:white;padding:2px 8px;border-radius:10px;font-size:11px">B ✓</span>'
                             : '<span style="background:#2980b9;color:white;padding:2px 8px;border-radius:10px;font-size:11px">A ✓</span>'
-                        filasHistorial += """
+                        filas += """
                         <tr>
                           <td>${entry.fecha}</td>
                           <td>${badge}</td>
@@ -384,168 +372,30 @@ PYEOF
                         </tr>"""
                     }
 
-                    def colorA = env.GANADOR == 'A' ? '#27ae60' : '#e74c3c'
-                    def colorB = env.GANADOR == 'B' ? '#27ae60' : '#e74c3c'
-                    def iconoA = env.GANADOR == 'A' ? '🏆' : '❌'
-                    def iconoB = env.GANADOR == 'B' ? '🏆' : '❌'
-
-                    def p95B_chart = (env.B_P95.toInteger() * 1.1).toInteger()
-                    def p95A_low   = (env.A_P95.toInteger() * 0.9).toInteger()
-                    def p95B_low   = (env.B_P95.toInteger() * 0.9).toInteger()
-                    def p95A_high  = (env.A_P95.toInteger() * 1.1).toInteger()
-
-                    def html = """<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Reporte A/B Testing — Ecommerce</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; padding: 30px; color: #2c3e50; }
-    .container { max-width: 900px; margin: auto; }
-    .header { background: #2c3e50; color: white; border-radius: 12px 12px 0 0; padding: 25px 30px; }
-    .header h1 { font-size: 22px; margin-bottom: 5px; }
-    .header p  { font-size: 13px; opacity: 0.7; }
-    .card { background: white; border-radius: 8px; padding: 25px; margin: 15px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .card h2 { font-size: 14px; color: #7f8c8d; margin-bottom: 18px; text-transform: uppercase; letter-spacing: 1px; }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-    .ver-box { border-radius: 8px; padding: 20px; text-align: center; }
-    .ver-a { background: ${colorA}15; border: 2px solid ${colorA}; }
-    .ver-b { background: ${colorB}15; border: 2px solid ${colorB}; }
-    .ver-box .icono  { font-size: 30px; margin-bottom: 8px; }
-    .ver-box .titulo { font-size: 12px; color: #7f8c8d; margin-bottom: 10px; }
-    .ver-box .valor  { font-size: 34px; font-weight: bold; margin-bottom: 4px; }
-    .ver-a .valor { color: ${colorA}; }
-    .ver-b .valor { color: ${colorB}; }
-    .ver-box .sub { font-size: 11px; color: #95a5a6; }
-    .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-    .mini-item { background: #f8f9fa; border-radius: 5px; padding: 8px; text-align: center; }
-    .mini-item .ml { font-size: 10px; color: #95a5a6; }
-    .mini-item .mn { font-size: 16px; font-weight: bold; color: #2c3e50; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th { background: #34495e; color: white; padding: 10px 12px; text-align: left; }
-    td { padding: 10px 12px; border-bottom: 1px solid #ecf0f1; }
-    tr:hover td { background: #f8f9fa; }
-    .banner { background: linear-gradient(135deg,#27ae60,#2ecc71); color: white; border-radius: 10px; padding: 22px 30px; margin: 15px 0; display: flex; align-items: center; gap: 20px; }
-    .banner .big { font-size: 48px; }
-    .banner h2 { font-size: 22px; margin-bottom: 5px; }
-    .banner p  { font-size: 13px; opacity: 0.9; }
-    .prod-box  { background: #2980b9; color: white; border-radius: 8px; padding: 15px; text-align: center; font-size: 14px; margin-top: 15px; }
-    .nota { font-size: 11px; color: #95a5a6; margin-top: 8px; font-style: italic; }
-    canvas { max-height: 260px; }
-  </style>
-</head>
-<body>
-<div class="container">
-
-  <div class="header">
-    <h1>📊 Reporte A/B Testing — API Ecommerce</h1>
-    <p>Generado automáticamente por Jenkins | ${fecha}</p>
-  </div>
-
-  <div class="card">
-    <h2>Métricas de Rendimiento (P95 — 30 peticiones concurrentes)</h2>
-    <div class="grid2">
-      <div class="ver-box ver-a">
-        <div class="icono">${iconoA}</div>
-        <div class="titulo">VERSIÓN A — En producción actual</div>
-        <div class="valor">${env.A_P95}ms</div>
-        <div class="sub">P95 de respuesta</div>
-        <div class="mini-grid">
-          <div class="mini-item"><div class="ml">Promedio</div><div class="mn">${env.A_PROM}ms</div></div>
-          <div class="mini-item"><div class="ml">Errores</div><div class="mn">${env.A_TASA_ERR}%</div></div>
-        </div>
-      </div>
-      <div class="ver-box ver-b">
-        <div class="icono">${iconoB}</div>
-        <div class="titulo">VERSIÓN B — Nueva versión optimizada</div>
-        <div class="valor">${env.B_P95}ms</div>
-        <div class="sub">P95 de respuesta</div>
-        <div class="mini-grid">
-          <div class="mini-item"><div class="ml">Promedio</div><div class="mn">${env.B_PROM}ms</div></div>
-          <div class="mini-item"><div class="ml">Errores</div><div class="mn">${env.B_TASA_ERR}%</div></div>
-        </div>
-      </div>
-    </div>
-    <p class="nota">* P95: el 95% de los usuarios experimentó este tiempo o menos. Métrica estándar de la industria.</p>
-  </div>
-
-  <div class="card">
-    <h2>Comparación Visual — P95 por versión (ms)</h2>
-    <canvas id="grafico"></canvas>
-  </div>
-
-  <div class="card">
-    <h2>Scoring Ponderado (60% velocidad P95 + 40% errores) — menor es mejor</h2>
-    <table>
-      <tr><th>Versión</th><th>P95 (ms)</th><th>Tasa Error</th><th>Score Final</th><th>Resultado</th></tr>
-      <tr>
-        <td><strong>Versión A</strong></td>
-        <td>${env.A_P95}ms</td><td>${env.A_TASA_ERR}%</td><td><strong>${env.SCORE_A}</strong></td>
-        <td>${iconoA} ${env.GANADOR == 'A' ? 'Ganadora' : 'Descartada'}</td>
-      </tr>
-      <tr>
-        <td><strong>Versión B</strong></td>
-        <td>${env.B_P95}ms</td><td>${env.B_TASA_ERR}%</td><td><strong>${env.SCORE_B}</strong></td>
-        <td>${iconoB} ${env.GANADOR == 'B' ? 'Ganadora' : 'Descartada'}</td>
-      </tr>
-    </table>
-  </div>
-
-  <div class="banner">
-    <div class="big">🏆</div>
-    <div>
-      <h2>GANADOR: Versión ${env.GANADOR}</h2>
-      <p>${env.MOTIVO}</p>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Historial de los últimos 5 despliegues</h2>
-    <table>
-      <tr><th>Fecha</th><th>Ganador</th><th>P95 A</th><th>P95 B</th><th>Score A</th><th>Score B</th></tr>
-      ${filasHistorial}
-    </table>
-  </div>
-
-  <div class="prod-box">
-    ✅ <strong>Versión ${env.GANADOR}</strong> está corriendo en Producción —
-    <strong>http://localhost:${PUERTO_PROD}</strong>
-  </div>
-
-</div>
-<script>
-new Chart(document.getElementById('grafico'), {
-  type: 'bar',
-  data: {
-    labels: ['GET /productos', 'GET /buscar', 'POST /carrito', 'P95 General'],
-    datasets: [
-      {
-        label: 'Versión A (ms)',
-        data: [${env.A_P95}, ${p95A_high}, ${p95A_low}, ${env.A_P95}],
-        backgroundColor: '${colorA}88',
-        borderColor: '${colorA}',
-        borderWidth: 2
-      },
-      {
-        label: 'Versión B (ms)',
-        data: [${env.B_P95}, ${p95B_chart}, ${p95B_low}, ${env.B_P95}],
-        backgroundColor: '${colorB}88',
-        borderColor: '${colorB}',
-        borderWidth: 2
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { position: 'top' } },
-    scales: { y: { beginAtZero: true, title: { display: true, text: 'Tiempo (ms)' } } }
-  }
-});
-</script>
-</body>
-</html>"""
+                    // Lee la plantilla y sustituye todos los placeholders
+                    def html = readFile('reporte-template.html')
+                        .replace('{{FECHA}}',           fecha)
+                        .replace('{{GANADOR}}',         env.GANADOR)
+                        .replace('{{MOTIVO}}',          env.MOTIVO)
+                        .replace('{{COLOR_A}}',         colorA)
+                        .replace('{{COLOR_B}}',         colorB)
+                        .replace('{{ICONO_A}}',         iconoA)
+                        .replace('{{ICONO_B}}',         iconoB)
+                        .replace('{{RESULTADO_A}}',     resultA)
+                        .replace('{{RESULTADO_B}}',     resultB)
+                        .replace('{{A_P95}}',           env.A_P95)
+                        .replace('{{A_PROM}}',          env.A_PROM)
+                        .replace('{{A_TASA_ERR}}',      env.A_TASA_ERR)
+                        .replace('{{SCORE_A}}',         env.SCORE_A)
+                        .replace('{{B_P95}}',           env.B_P95)
+                        .replace('{{B_PROM}}',          env.B_PROM)
+                        .replace('{{B_TASA_ERR}}',      env.B_TASA_ERR)
+                        .replace('{{SCORE_B}}',         env.SCORE_B)
+                        .replace('{{P95A_HIGH}}',       p95A_high.toString())
+                        .replace('{{P95A_LOW}}',        p95A_low.toString())
+                        .replace('{{P95B_HIGH}}',       p95B_high.toString())
+                        .replace('{{P95B_LOW}}',        p95B_low.toString())
+                        .replace('{{FILAS_HISTORIAL}}', filas)
 
                     writeFile file: 'reporte-ab-testing.html', text: html
                     archiveArtifacts artifacts: 'reporte-ab-testing.html', fingerprint: true

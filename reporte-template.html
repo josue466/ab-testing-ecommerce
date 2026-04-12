@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reporte A/B Testing — Ecommerce</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; padding: 30px; color: #2c3e50; }
+    .container { max-width: 900px; margin: auto; }
+    .header { background: #2c3e50; color: white; border-radius: 12px 12px 0 0; padding: 25px 30px; }
+    .header h1 { font-size: 22px; margin-bottom: 5px; }
+    .header p  { font-size: 13px; opacity: 0.7; }
+    .card { background: white; border-radius: 8px; padding: 25px; margin: 15px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card h2 { font-size: 14px; color: #7f8c8d; margin-bottom: 18px; text-transform: uppercase; letter-spacing: 1px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .ver-box { border-radius: 8px; padding: 20px; text-align: center; }
+    .ver-a { background: {{COLOR_A}}15; border: 2px solid {{COLOR_A}}; }
+    .ver-b { background: {{COLOR_B}}15; border: 2px solid {{COLOR_B}}; }
+    .ver-box .icono  { font-size: 30px; margin-bottom: 8px; }
+    .ver-box .titulo { font-size: 12px; color: #7f8c8d; margin-bottom: 10px; }
+    .ver-box .valor  { font-size: 34px; font-weight: bold; margin-bottom: 4px; }
+    .ver-a .valor { color: {{COLOR_A}}; }
+    .ver-b .valor { color: {{COLOR_B}}; }
+    .ver-box .sub { font-size: 11px; color: #95a5a6; }
+    .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .mini-item { background: #f8f9fa; border-radius: 5px; padding: 8px; text-align: center; }
+    .mini-item .ml { font-size: 10px; color: #95a5a6; }
+    .mini-item .mn { font-size: 16px; font-weight: bold; color: #2c3e50; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #34495e; color: white; padding: 10px 12px; text-align: left; }
+    td { padding: 10px 12px; border-bottom: 1px solid #ecf0f1; }
+    tr:hover td { background: #f8f9fa; }
+    .banner { background: linear-gradient(135deg,#27ae60,#2ecc71); color: white; border-radius: 10px; padding: 22px 30px; margin: 15px 0; display: flex; align-items: center; gap: 20px; }
+    .banner .big { font-size: 48px; }
+    .banner h2 { font-size: 22px; margin-bottom: 5px; }
+    .banner p  { font-size: 13px; opacity: 0.9; }
+    .prod-box  { background: #2980b9; color: white; border-radius: 8px; padding: 15px; text-align: center; font-size: 14px; margin-top: 15px; }
+    .nota { font-size: 11px; color: #95a5a6; margin-top: 8px; font-style: italic; }
+    canvas { max-height: 260px; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>📊 Reporte A/B Testing — API Ecommerce</h1>
+    <p>Generado automáticamente por Jenkins | {{FECHA}}</p>
+  </div>
+
+  <div class="card">
+    <h2>Métricas de Rendimiento (P95 — 30 peticiones concurrentes)</h2>
+    <div class="grid2">
+      <div class="ver-box ver-a">
+        <div class="icono">{{ICONO_A}}</div>
+        <div class="titulo">VERSIÓN A — En producción actual</div>
+        <div class="valor">{{A_P95}}ms</div>
+        <div class="sub">P95 de respuesta</div>
+        <div class="mini-grid">
+          <div class="mini-item"><div class="ml">Promedio</div><div class="mn">{{A_PROM}}ms</div></div>
+          <div class="mini-item"><div class="ml">Errores</div><div class="mn">{{A_TASA_ERR}}%</div></div>
+        </div>
+      </div>
+      <div class="ver-box ver-b">
+        <div class="icono">{{ICONO_B}}</div>
+        <div class="titulo">VERSIÓN B — Nueva versión optimizada</div>
+        <div class="valor">{{B_P95}}ms</div>
+        <div class="sub">P95 de respuesta</div>
+        <div class="mini-grid">
+          <div class="mini-item"><div class="ml">Promedio</div><div class="mn">{{B_PROM}}ms</div></div>
+          <div class="mini-item"><div class="ml">Errores</div><div class="mn">{{B_TASA_ERR}}%</div></div>
+        </div>
+      </div>
+    </div>
+    <p class="nota">* P95: el 95% de los usuarios experimentó este tiempo o menos. Métrica estándar de la industria.</p>
+  </div>
+
+  <div class="card">
+    <h2>Comparación Visual — P95 por versión (ms)</h2>
+    <canvas id="grafico"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>Scoring Ponderado (60% velocidad P95 + 40% errores) — menor es mejor</h2>
+    <table>
+      <tr><th>Versión</th><th>P95 (ms)</th><th>Tasa Error</th><th>Score Final</th><th>Resultado</th></tr>
+      <tr>
+        <td><strong>Versión A</strong></td>
+        <td>{{A_P95}}ms</td>
+        <td>{{A_TASA_ERR}}%</td>
+        <td><strong>{{SCORE_A}}</strong></td>
+        <td>{{ICONO_A}} {{RESULTADO_A}}</td>
+      </tr>
+      <tr>
+        <td><strong>Versión B</strong></td>
+        <td>{{B_P95}}ms</td>
+        <td>{{B_TASA_ERR}}%</td>
+        <td><strong>{{SCORE_B}}</strong></td>
+        <td>{{ICONO_B}} {{RESULTADO_B}}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="banner">
+    <div class="big">🏆</div>
+    <div>
+      <h2>GANADOR: Versión {{GANADOR}}</h2>
+      <p>{{MOTIVO}}</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Historial de los últimos 5 despliegues</h2>
+    <table>
+      <tr><th>Fecha</th><th>Ganador</th><th>P95 A</th><th>P95 B</th><th>Score A</th><th>Score B</th></tr>
+      {{FILAS_HISTORIAL}}
+    </table>
+  </div>
+
+  <div class="prod-box">
+    ✅ <strong>Versión {{GANADOR}}</strong> está corriendo en Producción —
+    <strong>http://localhost:3000</strong>
+  </div>
+
+</div>
+<script>
+new Chart(document.getElementById('grafico'), {
+  type: 'bar',
+  data: {
+    labels: ['GET /productos', 'GET /buscar', 'POST /carrito', 'P95 General'],
+    datasets: [
+      {
+        label: 'Versión A (ms)',
+        data: [{{A_P95}}, {{P95A_HIGH}}, {{P95A_LOW}}, {{A_P95}}],
+        backgroundColor: '{{COLOR_A}}88',
+        borderColor: '{{COLOR_A}}',
+        borderWidth: 2
+      },
+      {
+        label: 'Versión B (ms)',
+        data: [{{B_P95}}, {{P95B_HIGH}}, {{P95B_LOW}}, {{B_P95}}],
+        backgroundColor: '{{COLOR_B}}88',
+        borderColor: '{{COLOR_B}}',
+        borderWidth: 2
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: { y: { beginAtZero: true, title: { display: true, text: 'Tiempo (ms)' } } }
+  }
+});
+</script>
+</body>
+</html>
