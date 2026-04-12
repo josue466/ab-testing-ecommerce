@@ -7,7 +7,7 @@ pipeline {
         PUERTO_A     = '3001'
         PUERTO_B     = '3002'
         PUERTO_PROD  = '3000'
-        GIT_REPO     = 'josue466/ab-testing-ecommerce'
+        GIT_REPO     = 'TU_USUARIO/ab-testing-ecommerce'
         GIT_CREDS    = 'github-credentials'
         // Pesos del scoring: 60% velocidad, 40% errores
         PESO_P95     = '0.60'
@@ -97,8 +97,8 @@ pipeline {
                     sleep(6)
 
                     // Verificar que ambas arrancan correctamente
-                    def codeA = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:${PUERTO_A}/health", returnStdout: true).trim()
-                    def codeB = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:${PUERTO_B}/health", returnStdout: true).trim()
+                    def codeA = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://host.docker.internal:${PUERTO_A}/health", returnStdout: true).trim()
+                    def codeB = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://host.docker.internal:${PUERTO_B}/health", returnStdout: true).trim()
 
                     if (codeA != '200') error("❌ Versión A no arrancó correctamente (HTTP ${codeA})")
                     if (codeB != '200') error("❌ Versión B no arrancó correctamente (HTTP ${codeB})")
@@ -147,9 +147,9 @@ pipeline {
                                 # 10 usuarios concurrentes x 3 endpoints = 30 peticiones
                                 resultados=()
                                 for i in \$(seq 1 10); do
-                                    r1=\$(hacer_peticion "http://localhost:${puerto}/productos" "GET" "")
-                                    r2=\$(hacer_peticion "http://localhost:${puerto}/buscar?q=laptop" "GET" "")
-                                    r3=\$(hacer_peticion "http://localhost:${puerto}/carrito" "POST" '{"productoId":1,"cantidad":2}')
+                                    r1=\$(hacer_peticion "http://host.docker.internal:${puerto}/productos" "GET" "")
+                                    r2=\$(hacer_peticion "http://host.docker.internal:${puerto}/buscar?q=laptop" "GET" "")
+                                    r3=\$(hacer_peticion "http://host.docker.internal:${puerto}/carrito" "POST" '{"productoId":1,"cantidad":2}')
                                     resultados+=("\$r1" "\$r2" "\$r3")
                                 done
 
@@ -318,7 +318,7 @@ pipeline {
                     for (int i = 1; i <= 3; i++) {
                         sleep(4)
                         def code = sh(
-                            script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:${PUERTO_PROD}/health",
+                            script: "curl -s -o /dev/null -w '%{http_code}' http://host.docker.internal:${PUERTO_PROD}/health",
                             returnStdout: true
                         ).trim()
                         echo "  Intento ${i}/3 → HTTP ${code}"
@@ -572,7 +572,7 @@ pipeline {
   </div>
 
   <div class="prod-info">
-    ✅ <strong>Versión ${env.GANADOR}</strong> está corriendo en Producción — <strong>http://localhost:${PUERTO_PROD}</strong>
+    ✅ <strong>Versión ${env.GANADOR}</strong> está corriendo en Producción — <strong>http://host.docker.internal:${PUERTO_PROD}</strong>
   </div>
 
 </div>
