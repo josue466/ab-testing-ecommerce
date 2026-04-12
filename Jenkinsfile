@@ -101,7 +101,7 @@ pipeline {
 import subprocess, time, json
 
 HOST = "http://host.docker.internal:${puerto}"
-PETICIONES = 30
+PETICIONES = 100
 tiempos = []
 errores = 0
 
