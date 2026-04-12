@@ -205,25 +205,25 @@ PYEOF
                     def scoreA = (p95A * pesoV) + (errA * pesoE * 10)
                     def scoreB = (p95B * pesoV) + (errB * pesoE * 10)
 
-                    // ✅ Math.round() permitido en el sandbox de Jenkins
-                    env.SCORE_A = (Math.round(scoreA * 100) / 100.0).toString()
-                    env.SCORE_B = (Math.round(scoreB * 100) / 100.0).toString()
+                    // ✅ String.format evita notación científica (3E+1) del BigDecimal de Groovy
+                    env.SCORE_A = String.format("%.2f", scoreA as double)
+                    env.SCORE_B = String.format("%.2f", scoreB as double)
 
                     echo "⚖️  Score Versión A: ${env.SCORE_A} (menor es mejor)"
                     echo "⚖️  Score Versión B: ${env.SCORE_B} (menor es mejor)"
 
                     if (scoreB < scoreA) {
-                        def mejora = Math.round(((scoreA - scoreB) / scoreA) * 100 * 10) / 10.0
+                        def mejora = String.format("%.1f", (((scoreA - scoreB) / scoreA) * 100) as double)
                         env.GANADOR         = 'B'
                         env.IMAGEN_GANADORA = IMAGE_B
                         env.MOTIVO          = "Versión B es ${mejora}% más eficiente (Score: ${env.SCORE_B} vs ${env.SCORE_A})"
-                        env.MEJORA          = mejora.toString()
+                        env.MEJORA          = mejora
                     } else {
-                        def mejora = Math.round(((scoreB - scoreA) / scoreB) * 100 * 10) / 10.0
+                        def mejora = String.format("%.1f", (((scoreB - scoreA) / scoreB) * 100) as double)
                         env.GANADOR         = 'A'
                         env.IMAGEN_GANADORA = IMAGE_A
                         env.MOTIVO          = "Versión A mantiene mejor rendimiento (Score: ${env.SCORE_A} vs ${env.SCORE_B})"
-                        env.MEJORA          = mejora.toString()
+                        env.MEJORA          = mejora
                     }
 
                     echo """

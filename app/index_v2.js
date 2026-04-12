@@ -1,77 +1,159 @@
 const express = require('express');
-const app = express();
+const app     = express();
+const PORT    = process.env.PORT || 3000;
+const VERSION = process.env.APP_VERSION || 'B';
+const START   = Date.now();
+
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
-const VERSION = process.env.APP_VERSION || 'B';
+// ─── Datos de ejemplo ───────────────────────────────────────────────────────
 
-// Base de datos simulada de productos
 const productos = [
-  { id: 1, nombre: 'Laptop HP 15"',       precio: 2500.00, stock: 15, categoria: 'tecnologia' },
-  { id: 2, nombre: 'Mouse Logitech MX',   precio: 85.00,   stock: 50, categoria: 'tecnologia' },
-  { id: 3, nombre: 'Teclado Mecánico',    precio: 320.00,  stock: 30, categoria: 'tecnologia' },
-  { id: 4, nombre: 'Monitor Samsung 24"', precio: 890.00,  stock: 10, categoria: 'tecnologia' },
-  { id: 5, nombre: 'Audífonos Sony WH',   precio: 450.00,  stock: 25, categoria: 'audio'      },
-  { id: 6, nombre: 'Cámara Canon EOS',    precio: 3200.00, stock: 8,  categoria: 'fotografia' },
-  { id: 7, nombre: 'Tablet Samsung A8',   precio: 1200.00, stock: 20, categoria: 'tecnologia' },
-  { id: 8, nombre: 'Parlante JBL Go 3',   precio: 180.00,  stock: 40, categoria: 'audio'      }
+  { id: 1, nombre: 'Laptop Pro 15',    precio: 2499.99, stock: 12, categoria: 'Electrónica' },
+  { id: 2, nombre: 'Teclado Mecánico', precio:  129.99, stock: 45, categoria: 'Periféricos' },
+  { id: 3, nombre: 'Monitor 4K 27"',   precio:  699.99, stock: 8,  categoria: 'Electrónica' },
+  { id: 4, nombre: 'Mouse Inalámbrico',precio:   49.99, stock: 80, categoria: 'Periféricos' },
+  { id: 5, nombre: 'Auriculares BT',   precio:  199.99, stock: 30, categoria: 'Audio'       },
 ];
 
-// Versión B — CON caché en memoria (más rápida)
-const cache = {
-  productos,
-  porId: Object.fromEntries(productos.map(p => [p.id, p])),
-  porCategoria: productos.reduce((acc, p) => {
-    if (!acc[p.categoria]) acc[p.categoria] = [];
-    acc[p.categoria].push(p);
-    return acc;
-  }, {})
-};
+// ─── Caché en memoria (optimización Versión B) ───────────────────────────────
 
-const simularConsultaBD = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const cache    = new Map();
+const CACHE_TTL = 30 * 1000; // 30 segundos
 
-// GET /productos — con caché
-app.get('/productos', async (req, res) => {
-  await simularConsultaBD(15); // caché en memoria — mucho más rápido
-  res.json({ version: VERSION, total: cache.productos.length, productos: cache.productos });
-});
+function getCache(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL) { cache.delete(key); return null; }
+  return entry.data;
+}
 
-// GET /producto/:id — con caché por ID
-app.get('/producto/:id', async (req, res) => {
-  await simularConsultaBD(10);
-  const producto = cache.porId[parseInt(req.params.id)];
-  if (!producto) return res.status(404).json({ error: 'Producto no encontrado', version: VERSION });
-  res.json({ version: VERSION, producto });
-});
+function setCache(key, data) {
+  cache.set(key, { data, ts: Date.now() });
+}
 
-// GET /buscar?q=texto — con índice por nombre
-app.get('/buscar', async (req, res) => {
-  await simularConsultaBD(20); // búsqueda con índice — más rápida
-  const q = (req.query.q || '').toLowerCase();
-  const resultados = cache.productos.filter(p =>
-    p.nombre.toLowerCase().includes(q) ||
-    p.categoria.toLowerCase().includes(q)
-  );
-  res.json({ version: VERSION, query: q, total: resultados.length, resultados });
-});
+// ─── GET / — API Landing (status profesional) ────────────────────────────────
 
-// POST /carrito — con validación rápida
-app.post('/carrito', async (req, res) => {
-  await simularConsultaBD(12);
-  const { productoId, cantidad } = req.body;
-  const producto = cache.porId[parseInt(productoId)];
-  if (!producto) return res.status(404).json({ error: 'Producto no encontrado', version: VERSION });
-  if (producto.stock < cantidad) return res.status(400).json({ error: 'Stock insuficiente', version: VERSION });
+app.get('/', (req, res) => {
+  const uptimeMs  = Date.now() - START;
+  const uptimeSeg = Math.floor(uptimeMs / 1000);
+  const horas     = Math.floor(uptimeSeg / 3600);
+  const minutos   = Math.floor((uptimeSeg % 3600) / 60);
+  const segundos  = uptimeSeg % 60;
+
   res.json({
-    version: VERSION,
-    mensaje: 'Producto agregado al carrito',
-    item: { producto: producto.nombre, cantidad, subtotal: producto.precio * cantidad }
+    servicio    : 'EcommerceAPI',
+    version     : VERSION,
+    estado      : 'operativo',
+    uptime      : `${horas}h ${minutos}m ${segundos}s`,
+    timestamp   : new Date().toISOString(),
+    cache       : { entradas: cache.size, ttl_seg: CACHE_TTL / 1000 },
+    endpoints   : [
+      { metodo: 'GET',  ruta: '/productos',      descripcion: 'Lista todos los productos (cacheado)'  },
+      { metodo: 'GET',  ruta: '/producto/:id',   descripcion: 'Detalle de un producto (cacheado)'     },
+      { metodo: 'GET',  ruta: '/buscar?q=texto', descripcion: 'Búsqueda de productos (cacheado)'      },
+      { metodo: 'POST', ruta: '/carrito',        descripcion: 'Agregar producto al carrito'            },
+      { metodo: 'GET',  ruta: '/health',         descripcion: 'Estado del servicio (CI/CD)'            },
+    ],
   });
 });
 
-// GET /health
+// ─── GET /health ─────────────────────────────────────────────────────────────
+
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy', version: VERSION, timestamp: new Date().toISOString() });
+  res.json({
+    status    : 'ok',
+    version   : VERSION,
+    uptime_ms : Date.now() - START,
+    cache_size: cache.size,
+    timestamp : new Date().toISOString(),
+  });
 });
 
-app.listen(PORT, () => console.log(`[VERSION ${VERSION}] API Ecommerce OPTIMIZADA corriendo en puerto ${PORT}`));
+// ─── GET /productos ──────────────────────────────────────────────────────────
+
+app.get('/productos', (req, res) => {
+  const KEY    = 'todos';
+  const cached = getCache(KEY);
+  if (cached) return res.json({ version: VERSION, cache: true,  total: cached.length, productos: cached });
+  setCache(KEY, productos);
+  res.json({ version: VERSION, cache: false, total: productos.length, productos });
+});
+
+// ─── GET /producto/:id ───────────────────────────────────────────────────────
+
+app.get('/producto/:id', (req, res) => {
+  const id  = parseInt(req.params.id);
+  const KEY = `producto_${id}`;
+
+  const cached = getCache(KEY);
+  if (cached) return res.json({ version: VERSION, cache: true, producto: cached });
+
+  const producto = productos.find(p => p.id === id);
+  if (!producto) {
+    return res.status(404).json({ error: 'Producto no encontrado', id: req.params.id });
+  }
+  setCache(KEY, producto);
+  res.json({ version: VERSION, cache: false, producto });
+});
+
+// ─── GET /buscar ─────────────────────────────────────────────────────────────
+
+app.get('/buscar', (req, res) => {
+  const q = (req.query.q || '').toLowerCase();
+  if (!q) {
+    return res.status(400).json({ error: 'Parámetro q requerido. Ej: /buscar?q=laptop' });
+  }
+
+  const KEY    = `buscar_${q}`;
+  const cached = getCache(KEY);
+  if (cached) return res.json({ version: VERSION, cache: true,  query: q, total: cached.length, resultados: cached });
+
+  const resultados = productos.filter(p =>
+    p.nombre.toLowerCase().includes(q) || p.categoria.toLowerCase().includes(q)
+  );
+  setCache(KEY, resultados);
+  res.json({ version: VERSION, cache: false, query: q, total: resultados.length, resultados });
+});
+
+// ─── POST /carrito ───────────────────────────────────────────────────────────
+
+app.post('/carrito', (req, res) => {
+  const { productoId, cantidad } = req.body;
+
+  if (!productoId || !cantidad) {
+    return res.status(400).json({ error: 'Se requiere productoId y cantidad' });
+  }
+
+  const producto = productos.find(p => p.id === parseInt(productoId));
+  if (!producto) {
+    return res.status(404).json({ error: 'Producto no encontrado' });
+  }
+  if (cantidad > producto.stock) {
+    return res.status(409).json({ error: 'Stock insuficiente', disponible: producto.stock });
+  }
+
+  const subtotal = parseFloat((producto.precio * cantidad).toFixed(2));
+
+  res.status(201).json({
+    version   : VERSION,
+    mensaje   : 'Producto agregado al carrito',
+    item      : { producto: producto.nombre, cantidad, precioUnit: producto.precio, subtotal },
+  });
+});
+
+// ─── 404 genérico ────────────────────────────────────────────────────────────
+
+app.use((req, res) => {
+  res.status(404).json({
+    error     : 'Ruta no encontrada',
+    ruta      : req.originalUrl,
+    sugerencia: 'Consulta GET / para ver los endpoints disponibles',
+  });
+});
+
+// ─── Inicio ──────────────────────────────────────────────────────────────────
+
+app.listen(PORT, () => {
+  console.log(`[EcommerceAPI] Versión ${VERSION} (con caché) escuchando en puerto ${PORT}`);
+});
