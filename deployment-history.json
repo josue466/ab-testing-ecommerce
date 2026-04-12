@@ -1,7 +1,18 @@
 {
-  "version_en_produccion": "A",
-  "historial": [
-    {
+  "version_en_produccion": "B",
+  "historial":   [
+        {
+      "fecha": "2026-04-12 03:34",
+      "ganador": "B",
+      "score_a": 76.8,
+      "score_b": 30,
+      "p95_a_ms": 128,
+      "p95_b_ms": 50,
+      "errores_a": 0,
+      "errores_b": 0,
+      "motivo": "Versión B es 60.9% más eficiente (Score: 3E+1 vs 76.8)"
+    },
+        {
       "fecha": "2025-01-01 00:00",
       "ganador": "A",
       "score_a": 0,
