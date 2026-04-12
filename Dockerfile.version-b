@@ -1,0 +1,14 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY app/package*.json ./
+RUN npm install --production
+
+COPY app/index_v2.js ./index.js
+
+ARG APP_VERSION=B
+ENV APP_VERSION=${APP_VERSION}
+
+EXPOSE 3000
+CMD ["node", "index.js"]

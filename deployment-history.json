@@ -1,0 +1,16 @@
+{
+  "version_en_produccion": "A",
+  "historial": [
+    {
+      "fecha": "2025-01-01 00:00",
+      "ganador": "A",
+      "score_a": 0,
+      "score_b": 0,
+      "p95_a_ms": 0,
+      "p95_b_ms": 0,
+      "errores_a": 0,
+      "errores_b": 0,
+      "motivo": "Version inicial en produccion"
+    }
+  ]
+}
