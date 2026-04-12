@@ -2,6 +2,17 @@
   "version_en_produccion": "A",
   "historial":   [
         {
+      "fecha": "2026-04-12 04:05",
+      "ganador": "A",
+      "score_a": 15,
+      "score_b": 18.6,
+      "p95_a_ms": 25,
+      "p95_b_ms": 31,
+      "errores_a": 0,
+      "errores_b": 0,
+      "motivo": "Versión A mantiene mejor rendimiento (Score: 15.00 vs 18.60)"
+    },
+        {
       "fecha": "2026-04-12 03:46",
       "ganador": "A",
       "score_a": 22.2,
