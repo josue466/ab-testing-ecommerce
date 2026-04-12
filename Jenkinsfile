@@ -205,20 +205,21 @@ PYEOF
                     def scoreA = (p95A * pesoV) + (errA * pesoE * 10)
                     def scoreB = (p95B * pesoV) + (errB * pesoE * 10)
 
-                    env.SCORE_A = scoreA.round(2).toString()
-                    env.SCORE_B = scoreB.round(2).toString()
+                    // ✅ Math.round() permitido en el sandbox de Jenkins
+                    env.SCORE_A = (Math.round(scoreA * 100) / 100.0).toString()
+                    env.SCORE_B = (Math.round(scoreB * 100) / 100.0).toString()
 
                     echo "⚖️  Score Versión A: ${env.SCORE_A} (menor es mejor)"
                     echo "⚖️  Score Versión B: ${env.SCORE_B} (menor es mejor)"
 
                     if (scoreB < scoreA) {
-                        def mejora = (((scoreA - scoreB) / scoreA) * 100).round(1)
+                        def mejora = Math.round(((scoreA - scoreB) / scoreA) * 100 * 10) / 10.0
                         env.GANADOR         = 'B'
                         env.IMAGEN_GANADORA = IMAGE_B
                         env.MOTIVO          = "Versión B es ${mejora}% más eficiente (Score: ${env.SCORE_B} vs ${env.SCORE_A})"
                         env.MEJORA          = mejora.toString()
                     } else {
-                        def mejora = (((scoreB - scoreA) / scoreB) * 100).round(1)
+                        def mejora = Math.round(((scoreB - scoreA) / scoreB) * 100 * 10) / 10.0
                         env.GANADOR         = 'A'
                         env.IMAGEN_GANADORA = IMAGE_A
                         env.MOTIVO          = "Versión A mantiene mejor rendimiento (Score: ${env.SCORE_A} vs ${env.SCORE_B})"
