@@ -157,4 +157,3 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`[EcommerceAPI] Versión ${VERSION} (con caché) escuchando en puerto ${PORT}`);
 });
-
