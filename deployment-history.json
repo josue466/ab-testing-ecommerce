@@ -2,6 +2,39 @@
   "version_en_produccion": "A",
   "historial":   [
         {
+      "fecha": "2026-04-16 01:04",
+      "ganador": "A",
+      "score_a": 22.2,
+      "score_b": 27,
+      "p95_a_ms": 37,
+      "p95_b_ms": 45,
+      "errores_a": 0,
+      "errores_b": 0,
+      "motivo": "Versión A mantiene mejor rendimiento (Score: 22.20 vs 27.00)"
+    },
+        {
+      "fecha": "2026-04-15 23:41",
+      "ganador": "A",
+      "score_a": 15,
+      "score_b": 19.2,
+      "p95_a_ms": 25,
+      "p95_b_ms": 32,
+      "errores_a": 0,
+      "errores_b": 0,
+      "motivo": "Versión A mantiene mejor rendimiento (Score: 15.00 vs 19.20)"
+    },
+        {
+      "fecha": "2026-04-15 23:40",
+      "ganador": "B",
+      "score_a": 30.6,
+      "score_b": 25.8,
+      "p95_a_ms": 51,
+      "p95_b_ms": 43,
+      "errores_a": 0,
+      "errores_b": 0,
+      "motivo": "Versión B es 15.7% más eficiente (Score: 25.80 vs 30.60)"
+    },
+        {
       "fecha": "2026-04-12 04:50",
       "ganador": "A",
       "score_a": 19.2,
