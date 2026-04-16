@@ -288,7 +288,7 @@ PYEOF
             steps {
                 script {
                     echo '📝 Actualizando deployment-history.json...'
-                    def fecha        = sh(script: "date '+%Y-%m-%d %H:%M'", returnStdout: true).trim()
+                    def fecha        = sh(script: "TZ='America/Lima' date '+%Y-%m-%d %H:%M'", returnStdout: true).trim()
                     def historialRaw = readFile('deployment-history.json')
                     def historial    = readJSON text: historialRaw
 
@@ -340,7 +340,7 @@ PYEOF
                 script {
                     echo '📋 Generando reporte HTML desde plantilla...'
 
-                    def fecha        = sh(script: "date '+%d/%m/%Y %H:%M'", returnStdout: true).trim()
+                    def fecha        = sh(script: "TZ='America/Lima' date '+%Y-%m-%d %H:%M'", returnStdout: true).trim()
                     def historialRaw = readFile('deployment-history.json')
                     def historial    = readJSON text: historialRaw
 
